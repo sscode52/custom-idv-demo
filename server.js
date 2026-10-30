@@ -13,12 +13,31 @@ const CLIENT_SECRET = process.env.IDV_CLIENT_SECRET || 'change-me-demo-secret';
 const BRAND = process.env.IDV_BRAND_NAME || 'Acme Verify';
 const KEY_FILE = path.join(__dirname, '.keys.json');
 
+// Accepts a PEM pasted as one line with literal \n, with real newlines, or wrapped in quotes,
+// and rebuilds it with proper 64-char base64 lines.
+function normalizePem(raw) {
+  const s = raw.trim().replace(/^["']|["']$/g, '').replace(/\\n/g, '\n');
+  const m = s.match(/-----BEGIN ([A-Z ]+)-----([\s\S]+?)-----END \1-----/);
+  if (!m) return s;
+  const body = m[2].replace(/\s+/g, '');
+  return `-----BEGIN ${m[1]}-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END ${m[1]}-----\n`;
+}
+
 // ---------- signing key (persisted so restarts don't invalidate Okta's JWKS cache) ----------
 async function loadKeys() {
   // Hosted deployments have ephemeral disks, so allow the key to come from an env var.
   if (process.env.IDV_PRIVATE_KEY_PEM) {
-    const privatePem = process.env.IDV_PRIVATE_KEY_PEM.replace(/\\n/g, '\n');
-    const publicPem = crypto.createPublicKey(privatePem).export({ type: 'spki', format: 'pem' });
+    const privatePem = normalizePem(process.env.IDV_PRIVATE_KEY_PEM);
+    let publicPem;
+    try {
+      publicPem = crypto.createPublicKey(crypto.createPrivateKey(privatePem)).export({ type: 'spki', format: 'pem' });
+    } catch (e) {
+      throw new Error(
+        `IDV_PRIVATE_KEY_PEM could not be parsed (${e.code || e.message}). ` +
+          'Expected a PKCS#8 key starting with -----BEGIN PRIVATE KEY-----. ' +
+          `Received ${process.env.IDV_PRIVATE_KEY_PEM.length} chars, starting "${process.env.IDV_PRIVATE_KEY_PEM.slice(0, 27)}".`,
+      );
+    }
     const publicKey = await importSPKI(publicPem, 'RS256');
     const kid = await calculateJwkThumbprint(await exportJWK(publicKey));
     return { privateKey: await importPKCS8(privatePem, 'RS256'), publicKey, kid };
