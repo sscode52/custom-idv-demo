@@ -18,9 +18,11 @@ const KEY_FILE = path.join(__dirname, '.keys.json');
 function normalizePem(raw) {
   const s = raw.trim().replace(/^["']|["']$/g, '').replace(/\\n/g, '\n');
   const m = s.match(/-----BEGIN ([A-Z ]+)-----([\s\S]+?)-----END \1-----/);
-  if (!m) return s;
-  const body = m[2].replace(/\s+/g, '');
-  return `-----BEGIN ${m[1]}-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END ${m[1]}-----\n`;
+  // No BEGIN/END lines (they get dropped when copying): assume bare PKCS#8 base64.
+  const label = m ? m[1] : 'PRIVATE KEY';
+  const body = (m ? m[2] : s).replace(/\s+/g, '');
+  if (!/^[A-Za-z0-9+/=]+$/.test(body)) return s;
+  return `-----BEGIN ${label}-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END ${label}-----\n`;
 }
 
 // ---------- signing key (persisted so restarts don't invalidate Okta's JWKS cache) ----------
