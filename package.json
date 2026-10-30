@@ -1,0 +1,15 @@
+{
+  "name": "custom-idv-demo",
+  "version": "1.0.0",
+  "description": "Mock identity verification vendor for demoing Okta Custom IDV (onboarding + password recovery)",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env server.js",
+    "setup:okta": "node --env-file=.env scripts/okta-setup.js",
+    "teardown:okta": "node --env-file=.env scripts/okta-setup.js --teardown"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "jose": "^5.9.6"
+  }
+}

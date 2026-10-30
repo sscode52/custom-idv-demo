@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: custom-idv-demo
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /.well-known/openid-configuration
+    envVars:
+      - key: IDV_BASE_URL
+        sync: false # set to https://<service-name>.onrender.com after first deploy
+      - key: IDV_CLIENT_ID
+        value: demo-okta-client
+      - key: IDV_CLIENT_SECRET
+        sync: false
+      - key: IDV_PRIVATE_KEY_PEM
+        sync: false
+      - key: IDV_BRAND_NAME
+        value: Acme Verify
